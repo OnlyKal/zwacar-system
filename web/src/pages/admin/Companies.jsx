@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { FiBriefcase, FiPause, FiPlay, FiPlus, FiTrash2 } from 'react-icons/fi'
-import { Avatar, Badge, Button, Card, ConfirmDialog, DataTable, Empty, Field, FilterChips, Input, Modal, PageHeader, Pagination, SearchInput, Select, IconButton } from '../../components/ui'
+import { FiBriefcase, FiCheck, FiPause, FiPlay, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
+import { Avatar, Badge, Button, Card, ConfirmDialog, DataTable, Empty, Field, FilterChips, Input, Modal, PageHeader, Pagination, SearchInput, Select, IconButton, StatusBadge } from '../../components/ui'
 import CompanyFields, { COMPANY_EMPTY, companyPayload } from '../../components/CompanyForm'
 import { PasswordChecklist } from '../auth/ResetPassword'
 import { useApi, useDebounce } from '../../hooks/useApi'
 import { api, errorMessage, fieldErrors } from '../../api/client'
-import { fmtDate, fmtNumber } from '../../utils/format'
+import { COMPANY_STATUS, fmtDate, fmtNumber } from '../../utils/format'
 
 function CreateCompanyModal({ open, onClose, onCreated }) {
   const [form, setForm] = useState(COMPANY_EMPTY)
@@ -68,8 +68,9 @@ function CreateCompanyModal({ open, onClose, onCreated }) {
 
 export default function Companies() {
   const nav = useNavigate()
+  const [sp] = useSearchParams()
   const [q, setQ] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(sp.get('status') || '')
   const [sort, setSort] = useState('createdAt')
   const [page, setPage] = useState(1)
   const [create, setCreate] = useState(false)
@@ -84,8 +85,8 @@ export default function Companies() {
         await api.delete(`/companies/${c.id}`, { data: { confirm: value } })
         toast.success('Entreprise supprimée (sauvegarde automatique créée)')
       } else {
-        await api.post(`/companies/${c.id}/status`, { status: action, reason: value })
-        toast.success(action === 'suspended' ? 'Entreprise suspendue' : 'Entreprise réactivée')
+        await api.post(`/companies/${c.id}/status`, { status: action === 'approve' ? 'active' : action, reason: value })
+        toast.success({ suspended: 'Entreprise suspendue', rejected: 'Inscription refusée', approve: 'Entreprise validée : elle peut se connecter' }[action] || 'Entreprise réactivée')
       }
       reload()
     } catch (e) {
@@ -112,7 +113,7 @@ export default function Companies() {
     { key: 'vehicles', label: 'Véhicules', render: (c) => <span><b>{c.activeVehicles}</b> <span className="muted">/ {c.vehiclesCount}</span></span> },
     { key: 'users', label: 'Utilisateurs', render: (c) => c.usersCount },
     { key: 'wallet', label: 'Wallet', align: 'right', render: (c) => <b>{fmtNumber(c.walletBalance)} cr.</b> },
-    { key: 'status', label: 'Statut', render: (c) => (c.status === 'active' ? <Badge tone="green">Active</Badge> : <Badge tone="red">Suspendue</Badge>) },
+    { key: 'status', label: 'Statut', render: (c) => <StatusBadge map={COMPANY_STATUS} value={c.status} /> },
     { key: 'createdAt', label: 'Inscription', render: (c) => fmtDate(c.createdAt) },
     {
       key: 'actions',
@@ -120,10 +121,15 @@ export default function Companies() {
       align: 'right',
       render: (c) => (
         <div className="row" style={{ justifyContent: 'flex-end', gap: 4 }} onClick={(e) => e.stopPropagation()}>
-          {c.status === 'active' ? (
+          {c.status === 'pending' ? (
+            <>
+              <Button size="sm" variant="primary" icon={FiCheck} onClick={() => setConfirm({ c, action: 'approve' })}>Valider</Button>
+              <IconButton icon={FiX} title="Refuser l’inscription" onClick={() => setConfirm({ c, action: 'rejected' })} />
+            </>
+          ) : c.status === 'active' ? (
             <IconButton icon={FiPause} title="Suspendre" onClick={() => setConfirm({ c, action: 'suspended' })} />
           ) : (
-            <IconButton icon={FiPlay} title="Réactiver" onClick={() => setConfirm({ c, action: 'active' })} />
+            <IconButton icon={FiPlay} title={c.status === 'rejected' ? 'Valider finalement' : 'Réactiver'} onClick={() => setConfirm({ c, action: c.status === 'rejected' ? 'approve' : 'active' })} />
           )}
           <IconButton icon={FiTrash2} title="Supprimer" onClick={() => setConfirm({ c, action: 'delete' })} />
         </div>
@@ -133,6 +139,8 @@ export default function Companies() {
 
   const cfg = confirm && {
     suspended: { title: `Suspendre ${confirm.c.name}`, message: 'Les collaborateurs seront déconnectés et les véhicules masqués des résultats publics.', danger: true, reason: true, label: 'Suspendre' },
+    approve: { title: `Valider ${confirm.c.name}`, message: 'L’entreprise pourra se connecter, recharger son wallet et publier ses véhicules. Un email de confirmation lui est envoyé.', label: 'Valider l’inscription' },
+    rejected: { title: `Refuser l’inscription de ${confirm.c.name}`, message: 'Le compte restera inaccessible. L’entreprise est informée par email (le motif lui est transmis).', danger: true, reason: true, label: 'Refuser' },
     active: { title: `Réactiver ${confirm.c.name}`, message: 'L’entreprise retrouvera l’accès à son espace et ses véhicules actifs redeviendront visibles.', label: 'Réactiver' },
     delete: { title: `Supprimer ${confirm.c.name}`, message: 'Suppression définitive de l’entreprise, de ses utilisateurs, véhicules, médias et historiques. Une sauvegarde automatique de la base est créée au préalable.', danger: true, text: confirm.c.name, label: 'Supprimer définitivement' },
   }[confirm.action]
@@ -145,7 +153,7 @@ export default function Companies() {
       <Card>
         <div className="toolbar">
           <SearchInput value={q} onChange={setQ} placeholder="Nom, email, ville, téléphone…" />
-          <FilterChips value={status} onChange={setStatus} options={[{ value: '', label: 'Toutes' }, { value: 'active', label: 'Actives' }, { value: 'suspended', label: 'Suspendues' }]} />
+          <FilterChips value={status} onChange={setStatus} options={[{ value: '', label: 'Toutes' }, { value: 'pending', label: 'En attente' }, { value: 'active', label: 'Actives' }, { value: 'suspended', label: 'Suspendues' }, { value: 'rejected', label: 'Refusées' }]} />
           <div style={{ flex: 1 }} />
           <Select value={sort} onChange={(e) => setSort(e.target.value)} options={[{ value: 'createdAt', label: 'Plus récentes' }, { value: 'name', label: 'Nom (A-Z)' }, { value: 'walletBalance', label: 'Solde wallet' }]} />
         </div>

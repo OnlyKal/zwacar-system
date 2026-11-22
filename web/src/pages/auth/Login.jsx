@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { FiEye, FiEyeOff, FiLock, FiLogIn, FiMail } from 'react-icons/fi'
 import AuthShell from './AuthShell'
 import { Button, Field } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
-import { errorMessage } from '../../api/client'
+import { api, errorMessage } from '../../api/client'
 
 export default function Login() {
   const { login } = useAuth()
@@ -15,6 +15,10 @@ export default function Login() {
   const [show, setShow] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [canRegister, setCanRegister] = useState(false)
+  useEffect(() => {
+    api.get('/public/config').then((r) => setCanRegister(r.data.data.allowCompanyRegistration !== false)).catch(() => {})
+  }, [])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -65,6 +69,12 @@ export default function Login() {
           Se connecter
         </Button>
       </form>
+      {canRegister && (
+      <div className="auth-signup">
+        <span>Vous louez des véhicules ?</span>
+        <Link to="/register">Créer un compte entreprise</Link>
+      </div>
+      )}
     </AuthShell>
   )
 }

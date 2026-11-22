@@ -18,7 +18,7 @@ const ADMIN_NAV = [
   {
     section: 'Gestion',
     items: [
-      { to: '/admin/companies', label: 'Entreprises', icon: FiBriefcase },
+      { to: '/admin/companies', label: 'Entreprises', icon: FiBriefcase, badge: 'pendingCompanies' },
       { to: '/admin/users', label: 'Utilisateurs', icon: FiUsers },
       { to: '/admin/vehicles', label: 'Véhicules', icon: IoCarSportOutline, badge: 'pendingVehicles' },
       { to: '/admin/catalog', label: 'Catalogue', icon: FiLayers },
@@ -97,8 +97,12 @@ export default function Layout() {
     const load = async () => {
       try {
         if (isSuperAdmin) {
-          const [p, v] = await Promise.all([api.get('/payments', { params: { status: 'pending', limit: 1 } }), api.get('/vehicles', { params: { status: 'pending', limit: 1 } })])
-          if (alive) setBadges({ pendingPayments: p.data.meta.total, pendingVehicles: v.data.meta.total })
+          const [p, v, c] = await Promise.all([
+            api.get('/payments', { params: { status: 'pending', limit: 1 } }),
+            api.get('/vehicles', { params: { status: 'pending', limit: 1 } }),
+            api.get('/companies', { params: { status: 'pending', limit: 1 } }),
+          ])
+          if (alive) setBadges({ pendingPayments: p.data.meta.total, pendingVehicles: v.data.meta.total, pendingCompanies: c.data.meta.total })
         } else if (can('contacts:view')) {
           const c = await api.get('/contacts', { params: { status: 'new', limit: 1 } })
           if (alive) setBadges({ newContacts: c.data.meta.total })

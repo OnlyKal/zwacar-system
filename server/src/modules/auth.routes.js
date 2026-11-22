@@ -5,14 +5,15 @@ const router = require('express').Router();
 const Joi = require('joi');
 const rateLimit = require('express-rate-limit');
 const config = require('../config');
-const { User, Company } = require('../models');
+const { User, Company, sequelize } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/common');
 const auth = require('../services/auth.service');
 const email = require('../services/email.service');
 const settings = require('../services/settings.service');
 const audit = require('../services/audit.service');
-const { AppError, ah } = require('../utils/helpers');
+const { AppError, ah, slugify, randomToken, companyBlockedMessage } = require('../utils/helpers');
+const notifications = require('../services/notification.service');
 const { ROLES } = require('../utils/constants');
 
 const REFRESH_COOKIE = 'zw_rt';
@@ -55,12 +56,79 @@ router.post(
       throw invalid;
     }
     if (user.status !== 'active') throw AppError.forbidden(user.status === 'pending' ? 'Compte non activé : consultez l’email d’invitation' : 'Compte suspendu');
-    if (user.companyId && user.company?.status !== 'active') throw AppError.forbidden('Votre entreprise est suspendue. Contactez le support.');
+    if (user.companyId && user.company?.status !== 'active') {
+      throw AppError.forbidden(user.company?.status === 'suspended' ? 'Votre entreprise est suspendue. Contactez le support.' : companyBlockedMessage(user.company?.status));
+    }
     if (req.body.scope === 'backoffice' && user.role === ROLES.CLIENT) throw AppError.forbidden('Ce compte client ne peut pas accéder au Web Admin');
 
     await user.update({ failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() });
     audit.log(req, 'auth.login', { userId: user.id, companyId: user.companyId, entityType: 'user', entityId: user.id, description: 'Connexion' });
     await respondWithSession(res, req, user);
+  })
+);
+
+/* ---------------- Inscription d'une entreprise (page publique du Web Admin) ---------------- */
+router.post(
+  '/register-company',
+  mailLimiter,
+  validate(
+    Joi.object({
+      company: Joi.object({
+        name: Joi.string().trim().min(2).max(150).required(),
+        email: Joi.string().email().lowercase().required(),
+        phone: Joi.string().trim().min(6).max(40).required(),
+        whatsapp: Joi.string().trim().max(40).allow('', null),
+        city: Joi.string().trim().min(2).max(100).required(),
+        country: Joi.string().trim().max(100).allow('', null),
+        address: Joi.string().trim().max(255).allow('', null),
+        taxId: Joi.string().trim().max(80).allow('', null),
+      }).required(),
+      admin: Joi.object({
+        firstName: Joi.string().trim().min(2).max(80).required(),
+        lastName: Joi.string().trim().min(2).max(80).required(),
+        email: Joi.string().email().lowercase().required(),
+        phone: Joi.string().trim().max(40).allow('', null),
+        password,
+      }).required(),
+      acceptTerms: Joi.boolean().valid(true).required().messages({ 'any.only': 'Vous devez accepter les conditions d’utilisation' }),
+      // Champ piège invisible : rempli uniquement par les robots.
+      website: Joi.string().allow('').max(0).messages({ 'string.max': 'Requête refusée' }),
+    })
+  ),
+  ah(async (req, res) => {
+    const general = await settings.get('general');
+    if (!general.allowCompanyRegistration) throw AppError.forbidden('Les inscriptions d’entreprises sont momentanément fermées');
+    const { company: c, admin: a } = req.body;
+    if (await User.findOne({ where: { email: a.email } })) throw AppError.conflict('Un compte existe déjà avec l’email de l’administrateur', [{ field: 'admin.email', message: 'Email déjà utilisé' }]);
+    const pending = Boolean(general.requireCompanyApproval);
+
+    let slug = slugify(c.name) || 'entreprise';
+    while (await Company.findOne({ where: { slug } })) slug = `${slugify(c.name) || 'entreprise'}-${randomToken(2)}`;
+
+    const { company, user } = await sequelize.transaction(async (t) => {
+      const company = await Company.create({ ...c, country: c.country || 'RD Congo', whatsapp: c.whatsapp || c.phone, slug, status: pending ? 'pending' : 'active' }, { transaction: t });
+      const user = await User.create(
+        { ...a, passwordHash: await auth.hashPassword(a.password), role: ROLES.COMPANY_ADMIN, companyId: company.id, status: 'active', emailVerifiedAt: null },
+        { transaction: t }
+      );
+      return { company, user };
+    });
+
+    email.queue('companyRegistered', [...new Set([company.email, user.email])].join(','), { company, user, pending }, { companyId: company.id });
+    await notifications.notifySuperAdmins({
+      type: 'company.registered',
+      title: pending ? 'Nouvelle entreprise à valider' : 'Nouvelle entreprise inscrite',
+      message: `${company.name} (${company.city}) — ${user.firstName} ${user.lastName}, ${user.email}, ${company.phone}.${pending ? ' Validez ou refusez l’inscription.' : ''}`,
+      link: `/admin/companies/${company.id}`,
+      companyId: company.id,
+      dedupeKey: `company.registered:${company.id}`,
+    });
+    audit.log(req, 'company.register', { userId: user.id, companyId: company.id, entityType: 'company', entityId: company.id, description: `Inscription de l'entreprise ${company.name}${pending ? ' (en attente de validation)' : ''}` });
+
+    if (pending) return res.status(201).json({ pending: true, company: { name: company.name, status: company.status } });
+    const fresh = await User.findByPk(user.id, withCompany);
+    res.status(201);
+    await respondWithSession(res, req, fresh);
   })
 );
 

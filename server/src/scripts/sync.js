@@ -24,6 +24,25 @@ async function syncSchema() {
       }
     }
   }
+  // MySQL : une colonne ENUM existante n'accepte pas les nouvelles valeurs du modèle → on l'élargit.
+  // (Seul ajout de valeurs : aucune donnée existante n'est modifiée.)
+  if (sequelize.getDialect() === 'mysql') {
+    for (const model of Object.values(sequelize.models)) {
+      const table = model.getTableName();
+      const existing = await qi.describeTable(table);
+      for (const [name, attr] of Object.entries(model.getAttributes())) {
+        const column = attr.field || name;
+        const values = attr.values || attr.type?.values;
+        if (!values || !existing[column]) continue;
+        const current = (String(existing[column].type).match(/'([^']*)'/g) || []).map((v) => v.slice(1, -1));
+        const missing = values.filter((v) => !current.includes(v));
+        if (!missing.length) continue;
+        const all = [...current, ...missing];
+        await qi.changeColumn(table, column, { type: require('sequelize').DataTypes.ENUM(...all), allowNull: attr.allowNull !== false, defaultValue: attr.defaultValue });
+        console.log(`[db] valeurs ajoutées à ${table}.${column} : ${missing.join(', ')}`);
+      }
+    }
+  }
   if (sequelize.getDialect() === 'sqlite') await sequelize.query('PRAGMA journal_mode = WAL');
 }
 

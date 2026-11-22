@@ -19,6 +19,13 @@ class AppError extends Error {
   static payment(msg) { return new AppError(402, msg, 'INSUFFICIENT_CREDITS'); }
 }
 
+/** Message affiché à un collaborateur dont l'entreprise n'est pas active. */
+function companyBlockedMessage(status) {
+  if (status === 'pending') return 'Votre entreprise est en attente de validation par l’administrateur. Vous recevrez un email dès son activation.';
+  if (status === 'rejected') return 'L’inscription de votre entreprise n’a pas été acceptée. Contactez le support pour plus d’informations.';
+  return 'Entreprise suspendue';
+}
+
 /** Enveloppe un handler async pour transmettre les erreurs au middleware central. */
 const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -89,4 +96,5 @@ const clientIp = (req) => (req.ip || req.socket?.remoteAddress || '').replace(':
 /** Construit l'URL publique d'un fichier média stocké. */
 const mediaUrl = (p) => (p ? `${config.apiUrl}/uploads/${p}` : null);
 
-module.exports = { AppError, ah, encrypt, decrypt, sha256, randomToken, makeReference, slugify, paginate, paged, addMonths, clientIp, mediaUrl };
+module.exports = {
+  companyBlockedMessage, AppError, ah, encrypt, decrypt, sha256, randomToken, makeReference, slugify, paginate, paged, addMonths, clientIp, mediaUrl };

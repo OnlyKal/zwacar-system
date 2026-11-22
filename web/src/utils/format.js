@@ -77,3 +77,10 @@ export const DRIVER_MODES = {
   optional: { label: 'Chauffeur en option', short: 'Chauffeur en option', help: 'Le client choisit ; un supplément s’ajoute au tarif.' },
   included: { label: 'Chauffeur inclus', short: 'Avec chauffeur', help: 'Toujours avec chauffeur, compris dans le tarif.' },
 }
+
+export const COMPANY_STATUS = {
+  pending: { label: 'En attente de validation', tone: 'amber' },
+  active: { label: 'Active', tone: 'green' },
+  suspended: { label: 'Suspendue', tone: 'red' },
+  rejected: { label: 'Inscription refusée', tone: '' },
+}

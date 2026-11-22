@@ -6,12 +6,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { FiBell, FiCheck, FiCheckCircle, FiInbox, FiSmartphone } from 'react-icons/fi'
+import { FiBell, FiBriefcase, FiCheck, FiCheckCircle, FiInbox, FiSmartphone } from 'react-icons/fi'
 import { api } from '../api/client'
 import { fmtDateTime } from '../utils/format'
 
-const ICON = { 'topup.completed': FiCheckCircle, 'topup.requested': FiInbox }
-const TONE = { 'topup.completed': 'green', 'topup.requested': 'gold' }
+const ICON = { 'topup.completed': FiCheckCircle, 'topup.requested': FiInbox, 'company.registered': FiBriefcase }
+const TONE = { 'topup.completed': 'green', 'topup.requested': 'gold', 'company.registered': 'gold' }
 const POLL_MS = 30000
 
 export default function NotificationBell() {
@@ -32,7 +32,7 @@ export default function NotificationBell() {
         list
           .filter((n) => n.id > lastId.current && !n.readAt)
           .reverse()
-          .forEach((n) => toast(n.title, { icon: n.type === 'topup.completed' ? '✅' : '📥', duration: 6000 }))
+          .forEach((n) => toast(n.title, { icon: n.type === 'topup.completed' ? '✅' : n.type === 'company.registered' ? '🏢' : '📥', duration: 6000 }))
       }
       lastId.current = list.reduce((m, n) => Math.max(m, n.id), lastId.current ?? 0)
       setItems(list)

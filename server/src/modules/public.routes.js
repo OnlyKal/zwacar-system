@@ -44,6 +44,8 @@ router.get(
         supportPhone: general.supportPhone,
         currency: general.currency,
         allowClientRegistration: general.allowClientRegistration,
+        allowCompanyRegistration: general.allowCompanyRegistration,
+        requireCompanyApproval: general.requireCompanyApproval,
         categories: categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug, icon: c.icon, count: cc[c.id] || 0 })),
         features: features.map((f) => ({ id: f.id, name: f.name, slug: f.slug, icon: f.icon })),
         brands: brands.filter((b) => b.brand).map((b) => ({ name: b.brand, count: Number(b.count) })),

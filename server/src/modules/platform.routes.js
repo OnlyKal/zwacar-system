@@ -155,6 +155,8 @@ settingsRouter.put(
       currency: Joi.string().uppercase().length(3).required(),
       requireVehicleApproval: Joi.boolean().required(),
       allowClientRegistration: Joi.boolean().required(),
+      allowCompanyRegistration: Joi.boolean().default(true),
+      requireCompanyApproval: Joi.boolean().default(true),
     })
   ),
   ah(async (req, res) => {

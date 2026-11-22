@@ -30,7 +30,8 @@ const Company = sequelize.define(
     taxId: { type: DataTypes.STRING(80) },
     description: { type: DataTypes.TEXT },
     logoUrl: { type: DataTypes.STRING(255) },
-    status: { type: DataTypes.ENUM('active', 'suspended'), allowNull: false, defaultValue: 'active' },
+    // pending = inscription en attente de validation ; rejected = inscription refusée
+    status: { type: DataTypes.ENUM('pending', 'active', 'suspended', 'rejected'), allowNull: false, defaultValue: 'active' },
     suspendedReason: { type: DataTypes.STRING(255) },
     // Solde du wallet en crédits (entier — jamais de flottant pour de la monnaie interne)
     walletBalance: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },

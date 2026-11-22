@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { FiCamera, FiCreditCard, FiDollarSign, FiEye, FiFileText, FiMessageCircle, FiPlus, FiSave, FiSend } from 'react-icons/fi'
+import { FiCamera, FiCheck, FiClock, FiCreditCard, FiDollarSign, FiEye, FiFileText, FiMessageCircle, FiPlus, FiSave, FiSend, FiX } from 'react-icons/fi'
 import { IoCarSportOutline } from 'react-icons/io5'
-import { Avatar, Badge, Button, Card, DataTable, ErrorBox, Field, Input, Loader, Modal, PageHeader, StatCard, StatusBadge, FilterChips } from '../../components/ui'
+import { Avatar, Badge, Button, Card, ConfirmDialog, DataTable, ErrorBox, Field, Input, Loader, Modal, PageHeader, StatCard, StatusBadge, FilterChips } from '../../components/ui'
 import CompanyFields, { companyPayload } from '../../components/CompanyForm'
 import { api, errorMessage, fieldErrors, openPdf } from '../../api/client'
-import { fmtDate, fmtMoney, fmtNumber, USER_STATUS, relative } from '../../utils/format'
+import { COMPANY_STATUS, fmtDate, fmtMoney, fmtNumber, USER_STATUS, relative } from '../../utils/format'
 
 function AdjustModal({ company, open, onClose, onDone }) {
   const [dir, setDir] = useState('credit')
@@ -58,6 +58,7 @@ export default function CompanyDetail() {
   const [adjust, setAdjust] = useState(false)
   const [notify, setNotify] = useState(false)
   const [msg, setMsg] = useState({ title: '', message: '' })
+  const [decision, setDecision] = useState(null)
   const logo = useRef()
 
   const load = () =>
@@ -114,10 +115,41 @@ export default function CompanyDetail() {
   return (
     <>
       <PageHeader title={c.name} subtitle={`Inscrite le ${fmtDate(c.createdAt)} · ${c.city || ''}`} crumbs={[{ label: 'Entreprises', to: '/admin/companies' }, { label: c.name }]}>
-        {c.status === 'active' ? <Badge tone="green">Active</Badge> : <Badge tone="red">Suspendue{c.suspendedReason ? ` — ${c.suspendedReason}` : ''}</Badge>}
+        <StatusBadge map={COMPANY_STATUS} value={c.status} />
+        {c.suspendedReason && c.status !== 'active' && <Badge tone="red" plain>{c.suspendedReason}</Badge>}
         <Button icon={FiSend} onClick={() => setNotify(true)}>Notifier</Button>
         <Button variant="primary" icon={FiCreditCard} onClick={() => setAdjust(true)}>Ajuster le wallet</Button>
       </PageHeader>
+
+      {c.status === 'pending' && (
+        <div className="callout mb-2" style={{ alignItems: 'center' }}>
+          <FiClock />
+          <div style={{ flex: 1 }}>
+            <b>Inscription en attente de validation.</b> Cette entreprise a créé son compte depuis la page publique. Vérifiez ses informations, puis validez-la pour lui donner accès à la plateforme.
+          </div>
+          <Button icon={FiX} onClick={() => setDecision('rejected')}>Refuser</Button>
+          <Button variant="primary" icon={FiCheck} onClick={() => setDecision('active')}>Valider</Button>
+        </div>
+      )}
+      <ConfirmDialog
+        open={Boolean(decision)}
+        onClose={() => setDecision(null)}
+        title={decision === 'active' ? `Valider ${c.name}` : `Refuser l’inscription de ${c.name}`}
+        message={decision === 'active' ? 'L’entreprise pourra se connecter, recharger son wallet et publier ses véhicules. Un email de confirmation lui est envoyé.' : 'Le compte restera inaccessible. L’entreprise est informée par email.'}
+        danger={decision === 'rejected'}
+        withReason={decision === 'rejected'}
+        confirmLabel={decision === 'active' ? 'Valider l’inscription' : 'Refuser'}
+        onConfirm={async (reason) => {
+          try {
+            await api.post(`/companies/${c.id}/status`, { status: decision, reason })
+            toast.success(decision === 'active' ? 'Entreprise validée : elle peut se connecter' : 'Inscription refusée')
+            load()
+          } catch (e) {
+            toast.error(errorMessage(e))
+            throw e
+          }
+        }}
+      />
 
       <div className="grid g-4">
         <StatCard dark icon={FiCreditCard} label="Solde wallet" value={`${fmtNumber(c.walletBalance)} cr.`} sub={`${fmtNumber(s.creditsSpent)} crédits consommés`} />

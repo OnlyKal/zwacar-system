@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const config = require('../config');
 const { RefreshToken, ActionToken, User, Company } = require('../models');
-const { AppError, sha256, randomToken, clientIp, mediaUrl } = require('../utils/helpers');
+const { AppError, sha256, randomToken, clientIp, mediaUrl, companyBlockedMessage } = require('../utils/helpers');
 const { ROLE_PERMISSIONS, ROLE_LABELS } = require('../utils/constants');
 
 const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,128}$/;
@@ -44,7 +44,7 @@ async function rotate(oldToken, req) {
   if (new Date(row.expiresAt) < new Date()) throw AppError.unauthorized('Session expirée');
   const user = await User.findByPk(row.userId, { include: [{ model: Company, as: 'company' }] });
   if (!user || user.status !== 'active') throw AppError.unauthorized('Compte inactif');
-  if (user.companyId && user.company?.status !== 'active') throw AppError.forbidden('Entreprise suspendue');
+  if (user.companyId && user.company?.status !== 'active') throw AppError.forbidden(companyBlockedMessage(user.company?.status));
   await row.update({ revokedAt: new Date() });
   return { user, tokens: await issueTokens(user, req) };
 }

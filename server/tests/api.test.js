@@ -522,6 +522,64 @@ test('notifications : le Super Admin est notifié des demandes et des paiements 
   assert.equal((await list(ctx.admin)).unread, 0);
 });
 
+test('inscription entreprise : en attente, connexion bloquée, validation ou refus par le Super Admin', async () => {
+  const body = (n, extra = {}) => ({
+    company: { name: `Loueur ${n}`, email: `loueur${n}@test.com`, phone: '+243810000111', city: 'Goma' },
+    admin: { firstName: 'Jean', lastName: `Loueur${n}`, email: `jean${n}@test.com`, password: 'Passw0rd' },
+    acceptTerms: true,
+    ...extra,
+  });
+  // Robots (champ piège rempli) et conditions non acceptées : refusés.
+  assert.equal((await api.post('/api/auth/register-company').send(body(1, { website: 'http://spam' }))).status, 400);
+  assert.equal((await api.post('/api/auth/register-company').send(body(1, { acceptTerms: false }))).status, 400);
+
+  const r = await api.post('/api/auth/register-company').send(body(1));
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.pending, true);
+  assert.equal(r.body.accessToken, undefined);
+  const company = await m.Company.findOne({ where: { email: 'loueur1@test.com' } });
+  assert.equal(company.status, 'pending');
+  assert.equal(company.walletBalance, 0);
+  // Email déjà utilisé.
+  assert.equal((await api.post('/api/auth/register-company').send(body(1))).status, 409);
+
+  // Connexion bloquée avec un message explicite tant que l'entreprise n'est pas validée.
+  const blocked = await api.post('/api/auth/login').send({ email: 'jean1@test.com', password: 'Passw0rd' });
+  assert.equal(blocked.status, 403);
+  assert.match(blocked.body.error.message, /attente de validation/);
+  // Invisible dans l'annuaire public.
+  assert.equal((await api.get(`/api/public/companies/${company.id}`)).status, 404);
+
+  // Notification du Super Admin + validation.
+  const notes = (await api.get('/api/notifications').set(bearer(ctx.admin))).body.data;
+  assert.ok(notes.some((n) => n.type === 'company.registered' && n.message.includes('Loueur 1')));
+  assert.equal((await api.post(`/api/companies/${company.id}/status`).set(bearer(ctx.admin)).send({ status: 'active' })).status, 200);
+  const ok = await api.post('/api/auth/login').send({ email: 'jean1@test.com', password: 'Passw0rd' });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.user.role, 'company_admin');
+  // Une entreprise active ne peut pas être « refusée ».
+  assert.equal((await api.post(`/api/companies/${company.id}/status`).set(bearer(ctx.admin)).send({ status: 'rejected' })).status, 400);
+
+  // Refus d'une inscription.
+  await api.post('/api/auth/register-company').send(body(2));
+  const c2 = await m.Company.findOne({ where: { email: 'loueur2@test.com' } });
+  assert.equal((await api.post(`/api/companies/${c2.id}/status`).set(bearer(ctx.admin)).send({ status: 'rejected', reason: 'Documents manquants' })).status, 200);
+  const refused = await api.post('/api/auth/login').send({ email: 'jean2@test.com', password: 'Passw0rd' });
+  assert.equal(refused.status, 403);
+  assert.match(refused.body.error.message, /pas été acceptée/);
+
+  // Sans validation préalable : compte actif et session ouverte immédiatement.
+  const general = await settings.get('general');
+  await settings.set('general', { ...general, requireCompanyApproval: false });
+  const direct = await api.post('/api/auth/register-company').send(body(3));
+  assert.equal(direct.status, 201);
+  assert.ok(direct.body.accessToken);
+  // Inscriptions fermées.
+  await settings.set('general', { ...general, allowCompanyRegistration: false });
+  assert.equal((await api.post('/api/auth/register-company').send(body(4))).status, 403);
+  await settings.set('general', general);
+});
+
 test('sauvegarde et restauration de la base', async () => {
   const b = await api.post('/api/backups').set(bearer(ctx.admin));
   assert.equal(b.status, 201);

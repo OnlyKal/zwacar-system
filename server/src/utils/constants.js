@@ -74,6 +74,9 @@ const DEFAULT_SETTINGS = {
     currency: 'USD',
     requireVehicleApproval: false,
     allowClientRegistration: true,
+    // Inscription des entreprises depuis la page publique, avec validation par le Super Administrateur
+    allowCompanyRegistration: true,
+    requireCompanyApproval: true,
   },
   billing: {
     packPriceUsd: 15, // 15 USD

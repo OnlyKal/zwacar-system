@@ -226,15 +226,43 @@ const templates = {
     }),
   }),
 
-  companyStatus: ({ company, status, reason, p }) => ({
-    subject: status === 'suspended' ? 'Votre entreprise a été suspendue' : 'Votre entreprise a été réactivée',
+  companyStatus: ({ company, status, previous, reason, p }) => {
+    const approved = status === 'active' && previous === 'pending';
+    const subject =
+      status === 'suspended' ? 'Votre entreprise a été suspendue' : status === 'rejected' ? 'Votre inscription n’a pas été acceptée' : approved ? 'Votre compte entreprise est activé' : 'Votre entreprise a été réactivée';
+    const intro =
+      status === 'suspended'
+        ? `L'espace de <b>${esc(company.name)}</b> a été suspendu. Vos véhicules ne sont plus visibles.`
+        : status === 'rejected'
+          ? `L'inscription de <b>${esc(company.name)}</b> sur ${esc(p)} n'a pas été acceptée.`
+          : approved
+            ? `Bonne nouvelle : l'inscription de <b>${esc(company.name)}</b> a été validée. Vous pouvez dès maintenant vous connecter, recharger votre wallet et publier vos véhicules.`
+            : `L'espace de <b>${esc(company.name)}</b> est de nouveau actif.`;
+    return {
+      subject,
+      html: layout({
+        platformName: p,
+        title: subject,
+        intro: intro + (reason && status !== 'active' ? `<br><br>Motif : <i>${esc(reason)}</i>` : ''),
+        cta: status === 'active' ? { label: 'Se connecter', url: `${config.webUrl}/login` } : undefined,
+      }),
+    };
+  },
+
+  companyRegistered: ({ company, user, pending, p }) => ({
+    subject: pending ? `Inscription reçue : ${company.name}` : `Bienvenue sur ${p} : ${company.name}`,
     html: layout({
       platformName: p,
-      title: status === 'suspended' ? 'Compte entreprise suspendu' : 'Compte entreprise réactivé',
-      intro:
-        status === 'suspended'
-          ? `L'espace de <b>${esc(company.name)}</b> a été suspendu. Vos véhicules ne sont plus visibles.${reason ? `<br><br>Motif : <i>${esc(reason)}</i>` : ''}`
-          : `L'espace de <b>${esc(company.name)}</b> est de nouveau actif.`,
+      title: pending ? 'Inscription reçue' : 'Bienvenue !',
+      intro: pending
+        ? `Bonjour ${esc(user.firstName)},<br><br>Nous avons bien reçu l'inscription de <b>${esc(company.name)}</b>. Notre équipe va l'examiner ; vous recevrez un email dès que votre compte sera activé.`
+        : `Bonjour ${esc(user.firstName)},<br><br>Le compte de <b>${esc(company.name)}</b> est créé. Connectez-vous pour recharger votre wallet et publier vos véhicules.`,
+      body: kv([
+        ['Entreprise', company.name],
+        ['Administrateur', `${user.firstName} ${user.lastName}`],
+        ['Identifiant de connexion', user.email],
+      ]),
+      cta: pending ? undefined : { label: 'Se connecter', url: `${config.webUrl}/login` },
     }),
   }),
 };

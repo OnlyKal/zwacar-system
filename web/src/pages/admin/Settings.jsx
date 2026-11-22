@@ -38,6 +38,8 @@ function General({ initial, onSaved }) {
       <div className="stack" style={{ gap: 14 }}>
         <Toggle checked={f.requireVehicleApproval} onChange={set('requireVehicleApproval')} label="Validation des véhicules par le Super Administrateur avant mise en ligne" />
         <Toggle checked={f.allowClientRegistration} onChange={set('allowClientRegistration')} label="Autoriser l’inscription des clients depuis l’application mobile" />
+        <Toggle checked={f.allowCompanyRegistration !== false} onChange={set('allowCompanyRegistration')} label="Autoriser les entreprises à créer leur compte depuis la page de connexion" />
+        <Toggle checked={f.requireCompanyApproval !== false} onChange={set('requireCompanyApproval')} label="Valider chaque nouvelle entreprise avant son activation" />
       </div>
     </Card>
   )

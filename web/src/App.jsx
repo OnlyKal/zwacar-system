@@ -8,6 +8,7 @@ import Logo from './components/Logo'
 const Login = lazy(() => import('./pages/auth/Login'))
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
+const RegisterCompany = lazy(() => import('./pages/auth/RegisterCompany'))
 const Account = lazy(() => import('./pages/shared/Account'))
 const VehiclesList = lazy(() => import('./pages/shared/VehiclesList'))
 const VehicleForm = lazy(() => import('./pages/shared/VehicleForm'))
@@ -69,6 +70,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
         <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
+        <Route path="/register" element={<PublicOnly><RegisterCompany /></PublicOnly>} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route element={<Guard><Layout /></Guard>}>

@@ -5,7 +5,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { User, Company } = require('../models');
-const { AppError } = require('../utils/helpers');
+const { AppError, companyBlockedMessage } = require('../utils/helpers');
 const { ROLES, ROLE_PERMISSIONS } = require('../utils/constants');
 
 function extractToken(req) {
@@ -26,7 +26,7 @@ async function loadUser(token) {
   // Rechargement systématique : une suspension prend effet immédiatement.
   const user = await User.findByPk(payload.sub, { include: [{ model: Company, as: 'company' }] });
   if (!user || user.status !== 'active') throw AppError.unauthorized('Compte inactif ou introuvable');
-  if (user.companyId && user.company?.status !== 'active') throw AppError.forbidden('Entreprise suspendue');
+  if (user.companyId && user.company?.status !== 'active') throw AppError.forbidden(companyBlockedMessage(user.company?.status));
   return user;
 }
 

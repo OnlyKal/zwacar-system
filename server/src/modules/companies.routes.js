@@ -162,18 +162,22 @@ admin.post(
 
 admin.post(
   '/:id/status',
-  validate(Joi.object({ status: Joi.string().valid('active', 'suspended').required(), reason: Joi.string().trim().max(255).allow('', null) })),
+  validate(Joi.object({ status: Joi.string().valid('active', 'suspended', 'rejected').required(), reason: Joi.string().trim().max(255).allow('', null) })),
   ah(async (req, res) => {
     const company = await Company.findByPk(req.params.id);
     if (!company) throw AppError.notFound('Entreprise introuvable');
-    await company.update({ status: req.body.status, suspendedReason: req.body.status === 'suspended' ? req.body.reason || null : null });
-    if (req.body.status === 'suspended') {
+    const previous = company.status;
+    if (req.body.status === 'rejected' && previous !== 'pending') throw AppError.badRequest('Seule une inscription en attente peut être refusée');
+    await company.update({ status: req.body.status, suspendedReason: req.body.status === 'active' ? null : req.body.reason || null });
+    if (req.body.status !== 'active') {
       // Déconnecte immédiatement tous les collaborateurs.
       const ids = (await User.findAll({ where: { companyId: company.id }, attributes: ['id'] })).map((u) => u.id);
       await RefreshToken.update({ revokedAt: new Date() }, { where: { userId: ids, revokedAt: null } });
     }
-    email.queue('companyStatus', company.email, { company, status: req.body.status, reason: req.body.reason }, { companyId: company.id });
-    audit.log(req, `company.${req.body.status === 'active' ? 'activate' : 'suspend'}`, { entityType: 'company', entityId: company.id, companyId: company.id, description: `${req.body.status === 'active' ? 'Réactivation' : 'Suspension'} de ${company.name}${req.body.reason ? ` — ${req.body.reason}` : ''}` });
+    email.queue('companyStatus', company.email, { company, status: req.body.status, previous, reason: req.body.reason }, { companyId: company.id });
+    const action = req.body.status === 'rejected' ? 'reject' : req.body.status === 'suspended' ? 'suspend' : previous === 'pending' ? 'approve' : 'activate';
+    const label = { reject: 'Refus de l’inscription', suspend: 'Suspension', approve: 'Validation de l’inscription', activate: 'Réactivation' }[action];
+    audit.log(req, `company.${action}`, { entityType: 'company', entityId: company.id, companyId: company.id, description: `${label} de ${company.name}${req.body.reason ? ` — ${req.body.reason}` : ''}` });
     res.json({ data: present(company) });
   })
 );
