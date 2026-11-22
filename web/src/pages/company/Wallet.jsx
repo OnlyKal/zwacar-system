@@ -8,7 +8,7 @@ import { PaymentsTable, TransactionsTable } from '../../components/finance'
 import { api, errorMessage } from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
-import { fmtMoney, fmtNumber } from '../../utils/format'
+import { fmtMoney, fmtNumber, topupPrice } from '../../utils/format'
 
 const METHOD_ICON = { mobile: FiSmartphone, request: FiSend, bank: FiHome, cash: FiDollarSign, test: FiZap }
 
@@ -37,13 +37,18 @@ function TopupForm({ billing, methods, packs, setPacks, methodId, setMethodId, n
       <div>
         <div className="field"><label>Nombre de packs</label></div>
         <div className="pack-picker mt-1">
-          {presets.map((n) => (
-            <div key={n} className={`pack ${packs === n ? 'active' : ''}`} onClick={() => setPacks(n)}>
-              <strong>{n * billing.packCredits}</strong>
-              <small>crédits</small>
-              <div className="small strong mt-1" style={{ color: 'var(--gold-700)' }}>{fmtMoney(n * billing.packPriceUsd)}</div>
-            </div>
-          ))}
+          {presets.map((n) => {
+            const p = topupPrice(billing, n)
+            return (
+              <div key={n} className={`pack ${packs === n ? 'active' : ''}`} onClick={() => setPacks(n)}>
+                {p.percent > 0 && <span className="pack-off">−{p.percent} %</span>}
+                <strong>{p.credits}</strong>
+                <small>crédits</small>
+                <div className="small strong mt-1" style={{ color: 'var(--gold-700)' }}>{fmtMoney(p.net)}</div>
+                {p.percent > 0 && <div className="pack-old">{fmtMoney(p.gross)}</div>}
+              </div>
+            )
+          })}
         </div>
         <div className="row mt-2" style={{ gap: 10 }}>
           <span className="small muted">Autre quantité :</span>
@@ -80,7 +85,20 @@ function TopupForm({ billing, methods, packs, setPacks, methodId, setMethodId, n
       <div className="callout">
         <FiInfo />
         <div>
-          Total : <b>{fmtMoney(packs * billing.packPriceUsd)}</b> pour <b>{fmtNumber(packs * billing.packCredits)} crédits</b>, soit {Math.floor((packs * billing.packCredits) / billing.publishCost)} publication(s) de véhicule ({billing.publishCost} crédits / {billing.validityMonths} mois).
+          {(() => {
+            const p = topupPrice(billing, packs)
+            return (
+              <>
+                Total : <b>{fmtMoney(p.net)}</b>
+                {p.percent > 0 && <> <s className="muted">{fmtMoney(p.gross)}</s> — remise de {p.percent} % (−{fmtMoney(p.saving)})</>} pour <b>{fmtNumber(p.credits)} crédits</b>, soit {Math.floor(p.credits / billing.publishCost)} publication(s) de véhicule ({billing.publishCost} crédits / {billing.validityMonths} mois).
+                {(billing.volumeDiscounts || []).length > 0 && (
+                  <div className="small muted mt-1">
+                    Remises : {[...billing.volumeDiscounts].sort((a, b) => a.minPacks - b.minPacks).map((t) => `${t.percent} % dès ${t.minPacks} packs`).join(' · ')}
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       </div>
     </div>
@@ -230,7 +248,7 @@ export function TopupModal({ open, onClose, billing, onDone }) {
 
   const res = st.result
   const online = res?.online && res.data.status === 'pending'
-  const label = selected?.online ? `Payer ${fmtMoney(st.packs * billing.packPriceUsd)}` : 'Envoyer la demande'
+  const label = selected?.online ? `Payer ${fmtMoney(topupPrice(billing, st.packs).net)}` : 'Envoyer la demande'
   return (
     <Modal
       open={open}

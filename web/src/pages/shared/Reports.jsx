@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import { FiActivity, FiBarChart2, FiBriefcase, FiDollarSign, FiDownload, FiEye, FiPieChart } from 'react-icons/fi'
 import { IoCarSportOutline } from 'react-icons/io5'
-import { Button, Card, Field, Input, PageHeader, Select } from '../../components/ui'
+import { Badge, Button, Card, Field, Input, PageHeader, Select } from '../../components/ui'
 import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
 import { errorMessage, openPdf } from '../../api/client'
@@ -13,8 +13,8 @@ const REPORTS = [
   { type: 'financial', title: 'Rapport financier', text: 'Paiements, montants encaissés et répartition par moyen de paiement.', icon: FiDollarSign, dates: true },
   { type: 'credits', title: 'Consommation des crédits', text: 'Grand livre détaillé : rechargements, publications, renouvellements.', icon: FiBarChart2, dates: true },
   { type: 'vehicles', title: 'Rapport des véhicules', text: 'Inventaire, statuts, expirations, consultations et contacts.', icon: IoCarSportOutline, dates: false },
-  { type: 'activity', title: 'Rapport d’activité', text: 'Opérations effectuées et journal des actions sensibles.', icon: FiActivity, dates: true },
-  { type: 'companies', title: 'Rapport des entreprises', text: 'Synthèse de toutes les entreprises de la plateforme.', icon: FiBriefcase, dates: true, admin: true },
+  { type: 'activity', title: 'Rapport d’activité', text: 'Opérations effectuées et journal des actions sensibles.', icon: FiActivity, dates: true, companyAdminOnly: true },
+  { type: 'companies', title: 'Rapport des entreprises', text: 'Synthèse de toutes les entreprises de la plateforme (toujours global).', icon: FiBriefcase, dates: true, admin: true, global: true },
 ]
 
 export default function Reports() {
@@ -24,6 +24,9 @@ export default function Reports() {
   const [companyId, setCompanyId] = useState('')
   const [busy, setBusy] = useState(null)
   const companies = useApi(isSuperAdmin ? '/companies/options' : null)
+  const selected = (companies.data?.data || []).find((c) => String(c.id) === String(companyId))
+  const scopeLabel = (r) => (!isSuperAdmin ? user.company?.name : r.global || !selected ? 'Toute la plateforme' : selected.name)
+  const visible = REPORTS.filter((r) => (!r.admin || isSuperAdmin) && (!r.companyAdminOnly || isSuperAdmin || user.role === 'company_admin'))
 
   const run = async (r, download) => {
     const p = new URLSearchParams()
@@ -42,7 +45,7 @@ export default function Reports() {
 
   return (
     <>
-      <PageHeader title="Rapports PDF" subtitle={isSuperAdmin ? 'Rapports globaux ou par entreprise' : `Rapports de ${user.company?.name}`} />
+      <PageHeader title="Rapports PDF" subtitle={isSuperAdmin ? (selected ? `Rapports de l’entreprise ${selected.name}` : 'Rapports globaux de toute la plateforme') : `Rapports de ${user.company?.name}`} />
       <Card pad>
         <div className="form-grid cols-3">
           <Field label="Du"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
@@ -55,13 +58,16 @@ export default function Reports() {
         </div>
       </Card>
       <div className="grid g-3 mt-3">
-        {REPORTS.filter((r) => !r.admin || isSuperAdmin).map((r, i) => (
+        {visible.map((r, i) => (
           <motion.div key={r.type} className="card card-pad" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <div className="list-icon" style={{ width: 46, height: 46, fontSize: 20 }}><r.icon /></div>
             <h3 className="mt-2" style={{ fontSize: 16 }}>{r.title}</h3>
-            <p className="muted small" style={{ minHeight: 40 }}>{r.text}</p>
-            <div className="small muted mb-2">{r.dates ? 'Filtré par la période sélectionnée' : 'Situation actuelle'}</div>
-            <div className="row">
+            <p className="muted small" style={{ minHeight: 40 }}>{r.type === 'financial' && !isSuperAdmin ? 'Vos achats de crédits : montants payés, remises obtenues et moyens de paiement.' : r.text}</p>
+            <div className="row mb-2" style={{ gap: 6, flexWrap: 'wrap' }}>
+              <Badge tone={scopeLabel(r) === 'Toute la plateforme' ? 'dark' : 'gold'} plain>{scopeLabel(r)}</Badge>
+              <span className="small muted">{r.dates ? 'Période sélectionnée' : 'Situation actuelle'}</span>
+            </div>
+            <div className="row wrap" style={{ gap: 8 }}>
               <Button icon={FiEye} loading={busy === r.type + false} onClick={() => run(r, false)}>Consulter / imprimer</Button>
               <Button variant="primary" icon={FiDownload} loading={busy === r.type + true} onClick={() => run(r, true)}>Télécharger</Button>
             </div>

@@ -32,9 +32,11 @@ npm run dev                   # http://localhost:5180
 # Application mobile
 cd mobile
 flutter pub get
-flutter run                                           # émulateur Android → 10.0.2.2:4100, iOS → localhost:4100
-flutter run --dart-define=API_URL=http://192.168.1.20:4100/api   # téléphone physique sur le même réseau
+flutter run                                           # API de production : https://www.zwacar.space/api
+flutter run --dart-define=API_URL=http://10.0.2.2:4100/api      # API locale depuis l'émulateur Android
 ```
+
+Pour un téléphone physique connecté au même réseau que le serveur local, remplacez `10.0.2.2` par l'adresse IP locale de l'ordinateur qui exécute l'API (ex. `http://192.168.1.20:4100/api`).
 
 `npm run seed -- --reset` réinitialise complètement la base SQLite de développement.
 

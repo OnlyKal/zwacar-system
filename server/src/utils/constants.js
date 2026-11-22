@@ -86,6 +86,12 @@ const DEFAULT_SETTINGS = {
     reminderDays: [30, 7], // notifications avant expiration
     minTopupPacks: 1,
     maxTopupPacks: 100,
+    // Remises sur l'achat de crédits : à partir de N packs, X % de réduction sur le prix (crédits inchangés)
+    volumeDiscounts: [
+      { minPacks: 2, percent: 2 },
+      { minPacks: 5, percent: 3 },
+      { minPacks: 10, percent: 5 },
+    ],
   },
 };
 

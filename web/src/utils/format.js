@@ -84,3 +84,12 @@ export const COMPANY_STATUS = {
   suspended: { label: 'Suspendue', tone: 'red' },
   rejected: { label: 'Inscription refusée', tone: '' },
 }
+
+/** Remise sur l'achat de crédits (même règle que le serveur : palier le plus élevé atteint). */
+export function topupPrice(billing, packs) {
+  const n = Number(packs) || 0
+  const percent = (billing?.volumeDiscounts || []).filter((t) => n >= Number(t.minPacks)).reduce((m, t) => Math.max(m, Number(t.percent)), 0)
+  const gross = +(n * Number(billing?.packPriceUsd || 0)).toFixed(2)
+  const net = +(gross * (1 - percent / 100)).toFixed(2)
+  return { gross, net, percent, saving: +(gross - net).toFixed(2), credits: n * Number(billing?.packCredits || 0) }
+}

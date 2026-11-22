@@ -9,6 +9,7 @@ class AppState extends ChangeNotifier {
   PublicConfig? config;
   AppUser? user;
   Set<int> favoriteIds = {};
+  int favoritesRevision = 0;
   bool ready = false;
   String? configError;
 
@@ -98,6 +99,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       was ? await api.removeFavorite(id) : await api.addFavorite(id);
+      favoritesRevision++;
+      notifyListeners();
     } catch (e) {
       was ? favoriteIds.add(id) : favoriteIds.remove(id);
       notifyListeners();

@@ -23,4 +23,23 @@ async function log(req, action, { entityType, entityId, description, metadata, c
   }
 }
 
-module.exports = { log };
+/**
+ * Vue « entreprise » du journal : les actions du Super Administrateur apparaissent comme
+ * « Administration <plateforme> », sans identité, email, adresse IP ni métadonnées techniques.
+ */
+function maskForCompany(rows, platformName = 'ZwaCar') {
+  return rows.map((r) => {
+    const j = r.toJSON ? r.toJSON() : { ...r };
+    if (j.user?.role === 'super_admin') {
+      j.user = { id: null, firstName: 'Administration', lastName: platformName, email: null, role: 'super_admin' };
+      j.userId = null;
+      j.ip = null;
+      j.userAgent = null;
+      j.metadata = null;
+    }
+    return j;
+  });
+}
+
+module.exports = {
+  maskForCompany, log };

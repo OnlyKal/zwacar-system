@@ -554,3 +554,9 @@ table.table { width: 100%; border-collapse: collapse; }
 @media (max-width: 640px) { .notif-panel { width: calc(100vw - 24px); right: -60px; } }
 .auth-signup { margin-top: 22px; padding: 14px 16px; border-radius: var(--radius); background: rgba(255, 255, 255, 0.04); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--a-muted); }
 .auth-signup a { font-weight: 700; color: var(--a-gold); }
+
+/* Remise sur les packs de crédits */
+.pack { position: relative; }
+.pack-off { position: absolute; top: 6px; right: 6px; background: var(--green); color: #fff; font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: var(--radius-sm); }
+.pack-old { font-size: 11px; color: var(--muted); text-decoration: line-through; }
+.tier-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }

@@ -328,10 +328,13 @@ async function paymentDocument(payment, company, kind = 'invoice') {
       { label: 'Crédits', width: 1.3, align: 'right' },
       { label: 'Montant', width: 1.7, align: 'right' },
     ],
-    [[`Rechargement du wallet ${b.meta.general.platformName} — crédits de publication de véhicules`, int(payment.credits), money(payment.amount, payment.currency)]]
+    [[`Rechargement du wallet ${b.meta.general.platformName} — crédits de publication de véhicules`, int(payment.credits), money(payment.grossAmount || payment.amount, payment.currency)]]
   );
+  const gross = Number(payment.grossAmount || payment.amount);
+  const discount = +(gross - Number(payment.amount)).toFixed(2);
   b.totals([
-    ['Sous-total', money(payment.amount, payment.currency)],
+    ['Sous-total', money(gross, payment.currency)],
+    ...(discount > 0 ? [[`Remise (${Number(payment.discountPercent)} %)`, `− ${money(discount, payment.currency)}`]] : []),
     ['Taxes', money(0, payment.currency)],
     [isInvoice ? 'Total' : 'Montant reçu', money(payment.amount, payment.currency), true],
   ]);

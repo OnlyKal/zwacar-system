@@ -300,7 +300,11 @@ const Payment = sequelize.define(
     companyId: { type: DataTypes.INTEGER, allowNull: false },
     paymentMethodId: { type: DataTypes.INTEGER },
     methodName: { type: DataTypes.STRING(100) },
+    // Montant payé (net, après remise)
     amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+    // Montant avant remise et taux de remise appliqué (achat en volume)
+    grossAmount: { type: DataTypes.DECIMAL(12, 2) },
+    discountPercent: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 },
     currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'USD' },
     credits: { type: DataTypes.INTEGER, allowNull: false },
     status: { type: DataTypes.ENUM('pending', 'completed', 'failed', 'cancelled'), allowNull: false, defaultValue: 'pending' },

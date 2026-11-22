@@ -177,6 +177,11 @@ settingsRouter.put(
       reminderDays: Joi.array().items(Joi.number().integer().min(1).max(365)).max(5).required(),
       minTopupPacks: Joi.number().integer().min(1).required(),
       maxTopupPacks: Joi.number().integer().min(Joi.ref('minTopupPacks')).max(10000).required(),
+      volumeDiscounts: Joi.array()
+        .items(Joi.object({ minPacks: Joi.number().integer().min(2).max(10000).required(), percent: Joi.number().min(0.1).max(90).precision(2).required() }))
+        .unique('minPacks')
+        .max(10)
+        .default([]),
     })
   ),
   ah(async (req, res) => {
@@ -329,7 +334,8 @@ auditRouter.get(
       limit: pg.limit,
       offset: pg.offset,
     });
-    res.json(paged(rows, count, pg));
+    const data = req.user.role === ROLES.SUPER_ADMIN ? rows : audit.maskForCompany(rows, (await settings.get('general')).platformName);
+    res.json(paged(data, count, pg));
   })
 );
 

@@ -1,4 +1,4 @@
-package com.zwacar.app
+package app.eden.manager
 
 import io.flutter.embedding.android.FlutterActivity
 

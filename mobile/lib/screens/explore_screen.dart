@@ -248,9 +248,23 @@ class _Header extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 22),
-          Text(
-            userName != null ? 'Bonjour $userName 👋' : 'Bonjour 👋',
-            style: const TextStyle(color: Color(0xFFC9C3B2), fontSize: 14),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                userName != null ? 'Bonjour $userName' : 'Bonjour',
+                style: const TextStyle(
+                  color: Color(0xFFC9C3B2),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.waving_hand_rounded,
+                color: AppColors.goldLight,
+                size: 17,
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           const Text(

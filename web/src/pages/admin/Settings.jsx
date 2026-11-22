@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { FiCheckCircle, FiClock, FiCopy, FiCreditCard, FiDollarSign, FiInfo, FiLock, FiMail, FiPlay, FiSave, FiSend, FiSettings, FiShield } from 'react-icons/fi'
+import { FiCheckCircle, FiClock, FiCopy, FiCreditCard, FiDollarSign, FiInfo, FiLock, FiMail, FiPercent, FiPlay, FiPlus, FiSave, FiSend, FiSettings, FiShield, FiTrash2 } from 'react-icons/fi'
 import { Badge, Button, Card, ErrorBox, Field, Input, Loader, PageHeader, Select, Tabs, Textarea, Toggle } from '../../components/ui'
 import { useApi } from '../../hooks/useApi'
 import { useAuth } from '../../context/AuthContext'
@@ -46,7 +46,10 @@ function General({ initial, onSaved }) {
 }
 
 function Billing({ initial, onSaved }) {
-  const [f, setF] = useState({ ...initial, reminderDays: initial.reminderDays.join(', ') })
+  const [f, setF] = useState({ ...initial, reminderDays: initial.reminderDays.join(', '), volumeDiscounts: (initial.volumeDiscounts || []).map((t) => ({ ...t })) })
+  const setTier = (i, k) => (e) => setF((x) => ({ ...x, volumeDiscounts: x.volumeDiscounts.map((t, j) => (j === i ? { ...t, [k]: e.target.value } : t)) }))
+  const addTier = () => setF((x) => ({ ...x, volumeDiscounts: [...x.volumeDiscounts, { minPacks: '', percent: '' }] }))
+  const removeTier = (i) => setF((x) => ({ ...x, volumeDiscounts: x.volumeDiscounts.filter((_, j) => j !== i) }))
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }))
@@ -61,6 +64,10 @@ function Billing({ initial, onSaved }) {
         minTopupPacks: Number(f.minTopupPacks),
         maxTopupPacks: Number(f.maxTopupPacks),
         reminderDays: String(f.reminderDays).split(',').map((s) => parseInt(s, 10)).filter((n) => n > 0),
+        volumeDiscounts: f.volumeDiscounts
+          .filter((t) => t.minPacks !== '' && t.percent !== '')
+          .map((t) => ({ minPacks: Number(t.minPacks), percent: Number(t.percent) }))
+          .sort((a, b) => a.minPacks - b.minPacks),
       }
       await api.put('/settings/billing', body)
       toast.success('Tarification enregistrée')
@@ -84,6 +91,31 @@ function Billing({ initial, onSaved }) {
         <div />
         <Field label="Packs minimum par rechargement" error={errors.minTopupPacks}><Input type="number" value={f.minTopupPacks} onChange={set('minTopupPacks')} /></Field>
         <Field label="Packs maximum par rechargement" error={errors.maxTopupPacks}><Input type="number" value={f.maxTopupPacks} onChange={set('maxTopupPacks')} /></Field>
+      </div>
+      <div className="form-section" style={{ padding: '22px 0 0' }}>
+        <h4><FiPercent /> Remises sur l’achat de crédits</h4>
+        <p>À partir d’un nombre de packs, une réduction s’applique sur le prix (les crédits sont inchangés). Le palier le plus élevé atteint est appliqué.</p>
+        <div className="stack" style={{ gap: 10 }}>
+          {f.volumeDiscounts.map((t, i) => (
+            <div key={i} className="tier-row">
+              <Field label="À partir de (packs)" error={errors[`volumeDiscounts.${i}.minPacks`]}><Input type="number" min="2" value={t.minPacks} onChange={setTier(i, 'minPacks')} /></Field>
+              <Field label="Remise (%)" error={errors[`volumeDiscounts.${i}.percent`]}><Input type="number" min="0" max="90" step="0.5" value={t.percent} onChange={setTier(i, 'percent')} /></Field>
+              <Button icon={FiTrash2} onClick={() => removeTier(i)} title="Supprimer ce palier" />
+            </div>
+          ))}
+          <div>
+            <Button size="sm" icon={FiPlus} onClick={addTier}>Ajouter un palier</Button>
+          </div>
+          {f.volumeDiscounts.some((t) => t.minPacks && t.percent) && (
+            <div className="small muted">
+              Exemple : {[...f.volumeDiscounts].filter((t) => t.minPacks && t.percent).sort((a, b) => a.minPacks - b.minPacks).map((t) => {
+                const n = Number(t.minPacks)
+                const gross = n * Number(f.packPriceUsd)
+                return `${n} packs = ${fmtMoney(gross * (1 - Number(t.percent) / 100))} au lieu de ${fmtMoney(gross)}`
+              }).join(' · ')}
+            </div>
+          )}
+        </div>
       </div>
       <div className="callout mt-3">
         <FiInfo />

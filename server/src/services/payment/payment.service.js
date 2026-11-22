@@ -15,13 +15,22 @@ const notifications = require('../notification.service');
 const { ROLES } = require('../../utils/constants');
 const { AppError, makeReference } = require('../../utils/helpers');
 
+/** Taux de remise applicable à un nombre de packs (palier le plus élevé atteint). */
+function discountFor(billing, packs) {
+  const tiers = (billing.volumeDiscounts || []).filter((t) => packs >= Number(t.minPacks));
+  return tiers.reduce((best, t) => Math.max(best, Number(t.percent)), 0);
+}
+
 async function quote(packs) {
   const billing = await settings.get('billing');
   const n = Number(packs);
   if (!Number.isInteger(n) || n < billing.minTopupPacks || n > billing.maxTopupPacks) {
     throw AppError.badRequest(`Nombre de packs invalide (${billing.minTopupPacks} à ${billing.maxTopupPacks})`);
   }
-  return { packs: n, amount: +(n * billing.packPriceUsd).toFixed(2), credits: n * billing.packCredits, currency: 'USD' };
+  const grossAmount = +(n * billing.packPriceUsd).toFixed(2);
+  const discountPercent = discountFor(billing, n);
+  const amount = +(grossAmount * (1 - discountPercent / 100)).toFixed(2);
+  return { packs: n, grossAmount, discountPercent, discountAmount: +(grossAmount - amount).toFixed(2), amount, credits: n * billing.packCredits, currency: 'USD' };
 }
 
 /**
@@ -50,6 +59,8 @@ async function createTopup({ companyId, packs, paymentMethodId, payerNote, phone
     paymentMethodId: method.id,
     methodName: method.name,
     amount: q.amount,
+    grossAmount: q.grossAmount,
+    discountPercent: q.discountPercent,
     currency: q.currency,
     credits: q.credits,
     status: 'pending',
@@ -240,4 +251,4 @@ async function syncPendingOnline() {
   return out;
 }
 
-module.exports = { quote, createTopup, completePayment, closePayment, syncPayment, syncPendingOnline };
+module.exports = { discountFor, quote, createTopup, completePayment, closePayment, syncPayment, syncPendingOnline };

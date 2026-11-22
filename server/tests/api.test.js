@@ -157,6 +157,21 @@ test('rechargement sandbox : 1 pack = 15 USD = 20 crédits', async () => {
   assert.equal(await balance(ctx.companyA.id), 20);
 });
 
+test('remises sur l’achat de crédits : 2 % dès 2 packs, 3 % dès 5, 5 % dès 10 ; montant net facturé', async () => {
+  const q = async (n) => (await api.get(`/api/payments/quote?packs=${n}`).set(bearer(ctx.tokenB))).body.data;
+  assert.deepEqual([(await q(1)).amount, (await q(1)).discountPercent], [15, 0]);
+  assert.deepEqual([(await q(2)).amount, (await q(2)).discountPercent, (await q(2)).grossAmount], [29.4, 2, 30]);
+  assert.deepEqual([(await q(5)).amount, (await q(5)).discountPercent], [72.75, 3]);
+  assert.deepEqual([(await q(12)).amount, (await q(12)).discountPercent, (await q(12)).credits], [171, 5, 240]);
+  const r = await api.post('/api/payments/topup').set(bearer(ctx.tokenB)).send({ packs: 10, paymentMethodId: ctx.manual.id });
+  assert.equal(r.status, 201);
+  const p = await m.Payment.findByPk(r.body.data.id);
+  assert.deepEqual([Number(p.amount), Number(p.grossAmount), Number(p.discountPercent), p.credits], [142.5, 150, 5, 200]);
+  const inv = await api.get(`/api/payments/${p.id}/invoice.pdf`).set(bearer(ctx.tokenB));
+  assert.equal(inv.status, 200);
+  await api.post(`/api/payments/${p.id}/cancel`).set(bearer(ctx.tokenB));
+});
+
 test('publication payante : 12 crédits débités, validité 12 mois, pas de double publication', async () => {
   const r = await api.post(`/api/vehicles/${ctx.vehicleA1}/publish`).set(bearer(ctx.tokenA));
   assert.equal(r.status, 200, JSON.stringify(r.body));
@@ -578,6 +593,35 @@ test('inscription entreprise : en attente, connexion bloquée, validation ou ref
   await settings.set('general', { ...general, allowCompanyRegistration: false });
   assert.equal((await api.post('/api/auth/register-company').send(body(4))).status, 403);
   await settings.set('general', general);
+});
+
+test('rapports : cloisonnement entreprise / super admin, rapport d’activité réservé, admin anonymisé', async () => {
+  // Comptable de la société A (accès aux rapports, mais pas au journal d'activité).
+  const acc = await api.post('/api/users').set(bearer(ctx.tokenA)).send({ firstName: 'Compta', lastName: 'Société', email: 'compta.a@test.com', role: 'accountant', password: 'Passw0rd' });
+  assert.equal(acc.status, 201, JSON.stringify(acc.body));
+  const tAcc = await login('compta.a@test.com', 'Passw0rd');
+  assert.equal((await api.get('/api/reports/financial.pdf').set(bearer(tAcc))).status, 200);
+  assert.equal((await api.get('/api/reports/activity.pdf').set(bearer(tAcc))).status, 403);
+  assert.equal((await api.get('/api/audit/logs').set(bearer(tAcc))).status, 403);
+
+  // Une entreprise ne peut ni demander le rapport d'une autre, ni les rapports globaux.
+  assert.equal((await api.get(`/api/reports/financial.pdf?companyId=${ctx.companyB.id}`).set(bearer(ctx.tokenA))).status, 403);
+  assert.equal((await api.get('/api/reports/companies.pdf').set(bearer(ctx.tokenA))).status, 403);
+  for (const t of ['financial', 'credits', 'vehicles', 'activity', 'statistics']) {
+    assert.equal((await api.get(`/api/reports/${t}.pdf`).set(bearer(ctx.tokenA))).status, 200, t);
+    assert.equal((await api.get(`/api/reports/${t}.pdf`).set(bearer(ctx.admin))).status, 200, `${t} global`);
+    assert.equal((await api.get(`/api/reports/${t}.pdf?companyId=${ctx.companyA.id}`).set(bearer(ctx.admin))).status, 200, `${t} admin→A`);
+  }
+
+  // Journal de la société A : les actions du Super Admin (ajustement de wallet) sont anonymisées.
+  const logs = (await api.get('/api/audit/logs?limit=100').set(bearer(ctx.tokenA))).body.data;
+  const adminActs = logs.filter((l) => l.user?.role === 'super_admin');
+  assert.ok(adminActs.length > 0, 'des actions du super admin existent pour la société A');
+  assert.ok(adminActs.every((l) => l.user.firstName === 'Administration' && l.user.email === null && l.ip === null && l.userId === null));
+  assert.ok(logs.every((l) => l.companyId === ctx.companyA.id));
+  // Le Super Admin, lui, voit l'identité réelle.
+  const raw = (await api.get(`/api/audit/logs?companyId=${ctx.companyA.id}&limit=100`).set(bearer(ctx.admin))).body.data;
+  assert.ok(raw.some((l) => l.user?.role === 'super_admin' && l.user.email === 'root@test.com'));
 });
 
 test('sauvegarde et restauration de la base', async () => {
