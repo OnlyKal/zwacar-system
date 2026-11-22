@@ -140,8 +140,12 @@ Emails gérés : bienvenue, confirmation de compte, invitation, réinitialisatio
 Depuis le poste de développement (clé SSH autorisée sur le VPS) :
 
 ```bash
-./deploy/deploy.sh                                   # ou : SSH_KEY=~/.ssh/<clé> ./deploy/deploy.sh
+./deploy/deploy.sh                          # clé ~/.ssh/id_ed25519_zwacar utilisée automatiquement
+./deploy/deploy.sh "Ajout du filtre chauffeur"   # message de commit personnalisé
+NO_PUSH=1 ./deploy/deploy.sh                # déployer sans pousser sur GitHub
 ```
+
+Après un déploiement réussi (site vérifié sur `/api/health`), le script enregistre les modifications et les **pousse sur GitHub** (`OnlyKal/zwacar-system`, branche courante). En cas d’échec du déploiement, rien n’est poussé.
 
 Le script compile le Web Admin, envoie le code dans `/opt/zwacar` (jamais `.env` ni `storage/`), puis exécute `deploy/server-setup.sh` sur le serveur : Node 22, MySQL, Nginx, Certbot et PM2 si absents ; base `zwacar` et utilisateur dédié ; `server/.env` avec secrets aléatoires (créé une seule fois) ; super administrateur `admin@zwacar.space` (mot de passe initial affiché une seule fois) ; HTTPS Let’s Encrypt pour `www.zwacar.space` et `zwacar.space` (redirigé). Relancer le même script met l’application à jour sans toucher aux données. Variables facultatives : `ZWACAR_PORT` (défaut 4100), `ZWACAR_ADMIN_EMAIL`, `ZWACAR_CERT_EMAIL`.
 
