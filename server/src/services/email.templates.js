@@ -144,7 +144,7 @@ const templates = {
     html: layout({
       platformName: p,
       title: 'Renouvellement automatique effectué',
-      intro: `La publication du véhicule <b>${esc(vName(vehicle))}</b> a été renouvelée automatiquement pour 12 mois.`,
+      intro: `La publication du véhicule <b>${esc(vName(vehicle))}</b> a été renouvelée automatiquement.`,
       body: kv([
         ['Crédits débités', `${cost}`],
         ['Solde restant', `${balance} crédits`],

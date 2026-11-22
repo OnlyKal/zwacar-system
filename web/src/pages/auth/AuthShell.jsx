@@ -93,13 +93,13 @@ export default function AuthShell({ children }) {
         <div className="auth-hud">
           <HudCar />
           <motion.div className="hud-chip" style={{ left: '2%', top: '30%' }} {...chip(1.2)}>
-            PUBLICATION<strong>12 <span>mois</span></strong>
+            RENOUVELLEMENT<strong><span>Automatique</span></strong>
           </motion.div>
           <motion.div className="hud-chip" style={{ left: '41%', bottom: '-2%' }} {...chip(1.45)}>
             STATUT<strong>En ligne</strong>
           </motion.div>
           <motion.div className="hud-chip" style={{ right: '0%', top: '24%' }} {...chip(1.7)}>
-            CRÉDITS<strong>15 $ = <span>20</span></strong>
+            PAIEMENT<strong>Mobile <span>Money</span></strong>
           </motion.div>
         </div>
 

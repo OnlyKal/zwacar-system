@@ -54,7 +54,7 @@ const E = [
   ['post', '/vehicles/{id}/media', 'Véhicules', 'Upload multipart : photos[] (≥4 requis pour publier) + video (≤ 20 Mo)'],
   ['delete', '/vehicles/{id}/media/{mediaId}', 'Véhicules', 'Supprimer un média'],
   ['put', '/vehicles/{id}/media/order', 'Véhicules', 'Réordonner les photos', true, { ids: [3, 1, 2, 4] }],
-  ['post', '/vehicles/{id}/publish', 'Véhicules', 'Publier (débit de 12 crédits, validité 12 mois)'],
+  ['post', '/vehicles/{id}/publish', 'Véhicules', 'Publier (débit de crédits et durée de validité selon la tarification en vigueur)'],
   ['patch', '/vehicles/{id}/auto-renew', 'Véhicules', 'Activer/désactiver le renouvellement automatique', true, { autoRenew: false }],
   ['patch', '/vehicles/{id}/availability', 'Véhicules', 'Disponibilité', true, { availability: 'rented' }],
   ['post', '/vehicles/{id}/moderate', 'Véhicules', 'Modération super admin : approve|reject|suspend|reactivate', true, { action: 'suspend', reason: '…' }],

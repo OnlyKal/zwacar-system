@@ -337,7 +337,7 @@ async function paymentDocument(payment, company, kind = 'invoice') {
   ]);
   b.paragraph(
     isInvoice
-      ? `Les crédits sont ajoutés au wallet de l'entreprise dès confirmation du paiement. Une publication de véhicule coûte des crédits et donne une validité de 12 mois.`
+      ? `Les crédits sont ajoutés au wallet de l'entreprise dès confirmation du paiement. Chaque publication de véhicule consomme des crédits selon la tarification en vigueur.`
       : `Nous confirmons avoir reçu la somme de ${money(payment.amount, payment.currency)} au titre du rechargement de ${int(payment.credits)} crédits. Merci pour votre confiance.`,
     { color: C.muted, size: 8.5 }
   );

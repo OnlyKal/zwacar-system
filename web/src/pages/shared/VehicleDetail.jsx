@@ -212,7 +212,7 @@ export default function VehicleDetail({ base }) {
                 <Link to={`/admin/companies/${v.companyId}`} className="btn btn-ghost btn-sm" style={{ justifyContent: 'flex-start' }}><FiBriefcase /> Voir l’entreprise</Link>
                 {v.status === 'pending' && (
                   <>
-                    <Button variant="primary" icon={FiCheck} onClick={() => setConfirm({ action: 'approve', title: 'Valider ce véhicule', message: 'Le véhicule sera visible publiquement pendant 12 mois à compter de maintenant.' })}>Valider</Button>
+                    <Button variant="primary" icon={FiCheck} onClick={() => setConfirm({ action: 'approve', title: 'Valider ce véhicule', message: 'Le véhicule sera visible publiquement pendant toute la durée de sa publication.' })}>Valider</Button>
                     <Button variant="danger" icon={FiX} onClick={() => setConfirm({ action: 'reject', title: 'Refuser ce véhicule', message: 'Les crédits de publication seront remboursés à l’entreprise.', reason: true, danger: true })}>Refuser</Button>
                   </>
                 )}
